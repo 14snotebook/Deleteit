@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🚀 CSV to JSON Converter</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 40px;
+      font-family: 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at top left, #0d1b2a, #000000 70%);
+      color: #00f7ff;
+      overflow-x: hidden;
+      transition: background 0.4s ease, color 0.4s ease;
+    }
+
+    .dark {
+      background: linear-gradient(160deg, #000000 0%, #001b29 100%);
+      color: #00e0ff;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: auto;
+      backdrop-filter: blur(12px);
+      background-color: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+      padding: 30px;
+      text-align: center;
+      animation: fadeIn 1s ease-in-out;
+    }
+
+    h2 {
+      font-weight: 400;
+      margin-bottom: 20px;
+    }
+
+    .drop-zone {
+      border: 2px dashed #00ffff;
+      border-radius: 10px;
+      padding: 40px;
+      margin-bottom: 20px;
+      background-color: rgba(255,255,255,0.05);
+      color: #00e0ff;
+      transition: background 0.3s ease;
+    }
+
+    .drop-zone.dragover {
+      background-color: rgba(0, 255, 255, 0.1);
+      animation: scaleIn 0.3s ease forwards;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    .upload-btn {
+      display: inline-block;
+      background-color: transparent;
+      border: 2px solid #00ffff;
+      padding: 12px 24px;
+      border-radius: 10px;
+      color: #00ffff;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.3s, transform 0.2s;
+      animation: pulse-glow 2s infinite alternate;
+    }
+
+    .upload-btn:hover {
+      background-color: rgba(0, 255, 255, 0.1);
+      transform: scale(1.05);
+    }
+
+    .toggle-btn {
+      display: inline-block;
+      margin-bottom: 20px;
+      padding: 10px 20px;
+      color: #00ffff;
+      border: 2px solid #00ffff;
+      border-radius: 20px;
+      background: rgba(0, 255, 255, 0.1);
+      cursor: pointer;
+      transition: all 0.4s ease;
+      perspective: 1000px;
+    }
+
+    .toggle-btn:hover {
+      transform: rotateX(10deg);
+      box-shadow: 0 0 12px #00ffff88;
+    }
+
+    button {
+      padding: 12px 24px;
+      margin: 15px 0;
+      background-color: #00ffff;
+      color: #111;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      animation: pulse-glow 2s infinite alternate;
+    }
+
+    button:hover {
+      background-color: #00c0c0;
+    }
+
+    .progress-bar {
+      height: 16px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: repeating-linear-gradient(45deg, #00ffff, #00c0ff 10px, #00ffff 20px);
+      background-size: 200% 100%;
+      transition: width 0.5s ease-in-out;
+    }
+
+    #output {
+      text-align: left;
+      margin-top: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 15px;
+      border-radius: 12px;
+      max-height: 300px;
+      overflow: auto;
+      font-family: monospace;
+      white-space: pre;
+      animation: fadeIn 0.6s ease forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes scaleIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes pulse-glow {
+      0% { box-shadow: 0 0 10px #00ffff44, 0 0 20px #00ffff22; }
+      100% { box-shadow: 0 0 20px #00ffffaa, 0 0 30px #00ffff44; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="toggle-btn" onclick="toggleDarkMode()">🌗 Toggle Dark Mode</div>
+    <h2>🚀 CSV to JSON Converter</h2>
+
+    <div id="dropZone" class="drop-zone">
+      Drop CSV file here<br>or<br>
+      <label for="fileInput" class="upload-btn">📁 Upload CSV</label>
+      <input type="file" id="fileInput" accept=".csv" />
+    </div>
+
+    <div class="progress-bar"><div class="progress-bar-fill" id="progressFill"></div></div>
+
+    <button onclick="downloadJSON()">⬇️ Download JSON</button>
+
+    <div id="output"></div>
+  </div>
+
+  <script>
+    let jsonData = [];
+
+    const dropZone = document.getElementById('dropZone');
+    const output = document.getElementById('output');
+    const fill = document.getElementById('progressFill');
+
+    function updateProgress(p) {
+      fill.style.width = p + '%';
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark');
+    }
+
+    function parseCSV(csv) {
+      const lines = csv.trim().split('\n');
+      const headers = lines[0].split(',');
+
+      return lines.slice(1).filter(Boolean).map((line, index) => {
+        const values = line.split(',');
+        const obj = headers.reduce((acc, key, i) => {
+          acc[key.trim()] = values[i] ? values[i].trim() : '';
+          return acc;
+        }, {});
+        updateProgress(Math.floor(((index + 1) / lines.length) * 100));
+        return obj;
+      });
+    }
+
+    function handleFile(file) {
+      fill.style.width = '0%';
+      fill.style.animation = 'none'; // Reset animation
+      void fill.offsetWidth; // Trigger reflow
+      fill.style.animation = null; // Restart if needed
+
+      updateProgress(10);
+      const reader = new FileReader();
+      reader.onload = e => {
+        jsonData = parseCSV(e.target.result);
+        output.textContent = JSON.stringify(jsonData, null, 2);
+        updateProgress(100);
+        fill.style.animation = 'none'; // 🛑 Stop animation
+      };
+      reader.readAsText(file);
+    }
+
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+
+    document.getElementById('fileInput').addEventListener('change', e => {
+      if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+
+    function downloadJSON() {
+      if (!jsonData.length) return alert('Please convert a CSV first!');
+      const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'converted.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
